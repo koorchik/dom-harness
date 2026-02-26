@@ -1,0 +1,35 @@
+{
+  "name": "dom-harness-angular-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "vite",
+    "build": "vite build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@angular/core": "^19.0.0",
+    "@angular/common": "^19.0.0",
+    "@angular/compiler": "^19.0.0",
+    "@angular/platform-browser": "^19.0.0",
+    "@angular/platform-browser-dynamic": "^19.0.0",
+    "@angular/animations": "^19.0.0",
+    "@angular/forms": "^19.0.0",
+    "@angular/router": "^19.0.0",
+    "rxjs": "^7.8.0",
+    "zone.js": "^0.15.0",
+    "dom-harness": "file:../.."
+  },
+  "devDependencies": {
+    "@angular/build": "^19.0.0",
+    "@angular/compiler-cli": "^19.0.0",
+    "@analogjs/vite-plugin-angular": "^1.0.0",
+    "@analogjs/vitest-angular": "^1.0.0",
+    "@testing-library/angular": "^17.0.0",
+    "@testing-library/user-event": "^14.5.2",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vitest": "^3.0.0",
+    "jsdom": "^25.0.0"
+  }
+}

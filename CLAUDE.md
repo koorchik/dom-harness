@@ -36,6 +36,22 @@ Single export: `DomHarness` class from `src/DomHarness.ts` → re-exported via `
 - Peer dependency: `@testing-library/user-event` >=14.0.0
 - Node >=18 required
 
+## Examples (`examples/`)
+
+6 framework examples (react, preact, solid, vue, svelte, angular) each demonstrating harness composition with `TextInput`, `Button`, and `LoginForm` components.
+
+**Structure:** Each component has its own folder (`text-input/`, `button/`, `login-form/`) containing component, harness, and test files. Vue/Svelte folders include `index.ts` barrel files for named re-exports of SFC default exports.
+
+**Commands per example:**
+- `npm test` — runs `vitest run`
+- Type check: `npx tsc --noEmit` (react, preact, solid, angular), `npx vue-tsc --noEmit` (vue), `npx svelte-check` (svelte)
+
+**Framework type quirks:**
+- Preact: Use `JSX.IntrinsicElements['input']` not `JSX.HTMLAttributes<HTMLInputElement>` (latter lacks `name`, `type`)
+- Vue/Svelte: Button `type` prop must be `HTMLButtonElement['type']` not `string`
+- Angular: `(ngSubmit)` requires `FormsModule` — child components using `FormsModule` doesn't cover the parent. Use native `(submit)` with `$event.preventDefault()` if parent doesn't import `FormsModule`
+- Svelte: Children use `Snippet` type + `{@render children?.()}` pattern; testing children requires a wrapper `.svelte` component
+
 ## Gotchas
 
 - Constructor error message (line 91) calls `DomHarness._getSelector()` which binds to the base class — if a subclass constructor fails, the error message itself may throw because `DomHarness` has no `testid`/`selector`
