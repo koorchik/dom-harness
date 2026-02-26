@@ -1,6 +1,6 @@
 {
   "name": "dom-harness",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "DOM component test harness library inspired by Angular CDK's ComponentHarness",
   "keywords": [
     "testing",
@@ -30,7 +30,10 @@
   "files": [
     "dist",
     "src",
-    "README.md"
+    "README.md",
+    "CLAUDE.md",
+    "llms.txt",
+    "llms-full.txt"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -45,7 +48,7 @@
     "@testing-library/user-event": "^14.5.2",
     "jsdom": "^25.0.1",
     "typescript": "^5.7.0",
-    "vitest": "^3.2.4"
+    "vitest": "^4.0.18"
   },
   "engines": {
     "node": ">=18"
