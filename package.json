@@ -1,0 +1,33 @@
+{
+  "name": "dom-harness",
+  "version": "1.0.0",
+
+  "description": "DOM component test harness library inspired by Angular CDK's ComponentHarness",
+  "keywords": ["testing", "harness", "component", "dom", "test-utils"],
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "src", "README.md"],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "peerDependencies": {
+    "@testing-library/user-event": ">=14.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/user-event": "^14.5.2",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
