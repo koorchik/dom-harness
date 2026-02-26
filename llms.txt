@@ -1,0 +1,18 @@
+# dom-harness
+
+> A lightweight TypeScript base class for building DOM component test harnesses, inspired by Angular CDK's ComponentHarness. Extend `DomHarness` to encapsulate selectors and interactions behind a clean API — works with any UI framework (React, Vue, Svelte, Angular, Solid, Preact).
+
+## Docs
+
+- [README](https://github.com/koorchik/dom-harness/blob/master/README.md): Full documentation with API reference, patterns, and usage examples
+- [Full LLM documentation](https://github.com/koorchik/dom-harness/blob/master/llms-full.txt): Complete API reference and examples optimized for LLM consumption
+- [Source](https://github.com/koorchik/dom-harness/blob/master/src/DomHarness.ts): Single-file implementation (~110 lines)
+
+## Examples
+
+- [React](https://github.com/koorchik/dom-harness/tree/master/examples/react)
+- [Vue](https://github.com/koorchik/dom-harness/tree/master/examples/vue)
+- [Svelte](https://github.com/koorchik/dom-harness/tree/master/examples/svelte)
+- [Angular](https://github.com/koorchik/dom-harness/tree/master/examples/angular)
+- [Solid](https://github.com/koorchik/dom-harness/tree/master/examples/solid)
+- [Preact](https://github.com/koorchik/dom-harness/tree/master/examples/preact)

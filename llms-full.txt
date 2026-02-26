@@ -1,0 +1,234 @@
+# dom-harness
+
+A lightweight TypeScript base class for building DOM component test harnesses, inspired by Angular CDK's ComponentHarness. Extend `DomHarness` to encapsulate selectors and interactions behind a clean API. Works with any UI framework.
+
+## Why use test harnesses?
+
+Tests that query the DOM directly are fragile — selectors are scattered across test files, interaction boilerplate is duplicated, and any markup change ripples through every test. A harness encapsulates all of that in one place so tests read like user interactions, not DOM traversals.
+
+## Installation
+
+```bash
+npm install dom-harness
+```
+
+Peer dependency: `@testing-library/user-event` >=14.0.0
+
+## Quick Start
+
+### 1. Create leaf harnesses
+
+Each harness subclass must define either `static testid` (preferred, maps to `[data-testid="..."]`) or `static selector` (raw CSS).
+
+```ts
+import { DomHarness } from 'dom-harness';
+
+export class ButtonHarness extends DomHarness {
+  static testid = 'button';
+
+  get button() { return this.root as HTMLButtonElement; }
+
+  async click() { await this.user.click(this.button); }
+  text() { return this.button.textContent ?? ''; }
+}
+
+export class TextInputHarness extends DomHarness {
+  static testid = 'text-input';
+
+  get input() { return this.root as HTMLInputElement; }
+
+  static byName(name: string, container?: Element) {
+    return this.find(h => h.name() === name, container);
+  }
+
+  async type(value: string) { await this.user.type(this.input, value); }
+  value() { return this.input.value; }
+  name() { return this.input.name; }
+}
+```
+
+### 2. Compose into a form harness
+
+Pass `this.root` as the container to scope child queries to the current component's DOM.
+
+```ts
+import { DomHarness } from 'dom-harness';
+import { TextInputHarness } from '../text-input/TextInputHarness';
+import { ButtonHarness } from '../button/ButtonHarness';
+
+export class LoginFormHarness extends DomHarness {
+  static testid = 'login-form';
+
+  get usernameInput() { return TextInputHarness.byName('username', this.root); }
+  get passwordInput() { return TextInputHarness.byName('password', this.root); }
+  get submitButton() { return ButtonHarness.first(this.root); }
+  get welcomeMessage() { return this.queryElement('[data-testid="welcome"]', true); }
+
+  welcomeText() { return this.welcomeMessage?.textContent ?? null; }
+}
+```
+
+### 3. Use in tests
+
+```ts
+import { render } from '@testing-library/react';
+import { LoginFormHarness } from './LoginFormHarness';
+
+it('should show welcome message after login', async () => {
+  render(<LoginForm />);
+  const form = LoginFormHarness.first();
+
+  await form.usernameInput.type('testuser');
+  await form.passwordInput.type('password123');
+  await form.submitButton.click();
+
+  expect(form.welcomeText()).toBe('Welcome, testuser!');
+});
+```
+
+## API Reference
+
+### Static Properties
+
+#### `static testid?: string`
+
+Maps to `[data-testid="<value>"]` selector. Preferred way to identify components.
+
+#### `static selector?: string`
+
+Raw CSS selector. Used when `testid` is not set.
+
+At least one of `testid` or `selector` must be defined on a harness subclass.
+
+### Static Methods
+
+All static methods use `this` typing so they return the correct subclass type.
+
+#### `first(container?: Element): T`
+
+Returns a harness instance for the first matching element in the DOM (or within `container`). Throws if no element is found.
+
+```ts
+const btn = ButtonHarness.first();
+const scopedBtn = ButtonHarness.first(formElement);
+```
+
+#### `all(container?: Element): T[]`
+
+Returns harness instances for all matching elements.
+
+```ts
+const buttons = ButtonHarness.all();
+expect(buttons).toHaveLength(3);
+```
+
+#### `find(matcher: (el: T) => boolean, container?: Element): T`
+
+Returns the first harness whose instance satisfies `matcher`. Throws if no match is found.
+
+```ts
+const submit = ButtonHarness.find(b => b.text() === 'Submit');
+```
+
+#### `match(textOrRegexp: string | RegExp, getText: (h: T) => string, container?: Element): T`
+
+Convenience wrapper around `find` that matches by text content or regex.
+
+```ts
+const cancel = ButtonHarness.match('Cancel', b => b.text());
+const save = ButtonHarness.match(/save/i, b => b.text());
+```
+
+#### `fromDomElement(root?: Element): T`
+
+Wraps an existing DOM element in a harness, bypassing selector lookup.
+
+```ts
+const el = document.querySelector('.my-button')!;
+const btn = ButtonHarness.fromDomElement(el);
+```
+
+### Instance Properties
+
+#### `root: Element`
+
+The underlying DOM element for this harness.
+
+#### `user: UserEvent`
+
+A `@testing-library/user-event` instance for simulating user interactions. Created per harness instance via `userEvent.setup()`.
+
+```ts
+await harness.user.click(harness.root);
+```
+
+### Instance Methods
+
+#### `queryElement(selector: string): Element`
+
+Queries a descendant of `root` by CSS selector. Throws if no element is found.
+
+#### `queryElement(selector: string, optional: true): Element | null`
+
+Queries a descendant of `root` by CSS selector. Returns `null` if not found.
+
+```ts
+const icon = this.queryElement('.icon');
+const badge = this.queryElement('.badge', true); // may be null
+```
+
+## Patterns
+
+### Composing harnesses
+
+Harnesses reference child harnesses by calling static methods with `this.root` as the container:
+
+```ts
+class FormHarness extends DomHarness {
+  static testid = 'my-form';
+  get nameInput() { return TextInputHarness.byName('name', this.root); }
+  get submitBtn() { return ButtonHarness.first(this.root); }
+}
+```
+
+### Convenience finders
+
+Define static methods for common lookups:
+
+```ts
+class ButtonHarness extends DomHarness {
+  static selector = 'button';
+
+  static withText(text: string | RegExp) {
+    return this.match(text, b => b.text());
+  }
+
+  text() { return this.root.textContent ?? ''; }
+}
+
+const ok = ButtonHarness.withText('OK');
+```
+
+```ts
+class TextInputHarness extends DomHarness {
+  static testid = 'text-input';
+
+  static byName(name: string, container?: Element) {
+    return this.find(h => h.name() === name, container);
+  }
+
+  name() { return (this.root as HTMLInputElement).name; }
+}
+
+const email = TextInputHarness.byName('email');
+```
+
+### CSS selector fallback
+
+When `data-testid` is not available, use `selector`:
+
+```ts
+class CardHarness extends DomHarness {
+  static selector = '.MuiCard-root';
+}
+```
