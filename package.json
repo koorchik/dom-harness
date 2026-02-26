@@ -10,6 +10,14 @@
     "test-utils"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/koorchik/dom-harness.git"
+  },
+  "bugs": {
+    "url": "https://github.com/koorchik/dom-harness/issues"
+  },
+  "homepage": "https://github.com/koorchik/dom-harness#readme",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
