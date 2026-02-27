@@ -7,6 +7,8 @@
 
 A lightweight DOM component test harness library inspired by Angular CDK's `ComponentHarness`. It provides a structured way to interact with rendered DOM components in tests, hiding selector details behind a clean API and making tests more readable and maintainable.
 
+**New here?** Read the [Getting Started guide](docs/GETTING_STARTED.md) for a step-by-step tutorial.
+
 ## Why use test harnesses?
 
 Tests that query the DOM directly are fragile — selectors are scattered across test files, interaction boilerplate is duplicated, and any markup change ripples through every test that touches the component. A harness encapsulates all of that in one place so tests read like user interactions, not DOM traversals.
