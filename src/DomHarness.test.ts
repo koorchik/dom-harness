@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { userEvent } from '@testing-library/user-event';
 import { DomHarness } from './DomHarness.js';
 
 // --- Test harness stubs ---
@@ -54,7 +55,7 @@ function setBody(html: string) {
 
 describe('_getSelector', () => {
   it('returns data-testid selector when testid defined', () => {
-    expect(WidgetHarness._getSelector()).toBe("[data-testid='widget']");
+    expect(WidgetHarness._getSelector()).toBe('[data-testid="widget"]');
   });
 
   it('returns raw CSS when selector defined', () => {
@@ -62,7 +63,16 @@ describe('_getSelector', () => {
   });
 
   it('testid takes priority over selector', () => {
-    expect(BothHarness._getSelector()).toBe("[data-testid='both']");
+    expect(BothHarness._getSelector()).toBe('[data-testid="both"]');
+  });
+
+  it('escapes quotes and backslashes in testid', () => {
+    class QuotedHarness extends DomHarness {
+      static testid = 'it"s\\here';
+    }
+    expect(QuotedHarness._getSelector()).toBe('[data-testid="it\\"s\\\\here"]');
+    setBody('<div data-testid=\'it"s\\here\'>q</div>');
+    expect(QuotedHarness.first().root.textContent).toBe('q');
   });
 
   it('throws when neither defined', () => {
@@ -79,12 +89,22 @@ describe('constructor', () => {
     expect(harness.root).toBe(el);
   });
 
-  it('throws when root is null', () => {
-    expect(() => new WidgetHarness(null)).toThrow();
+  it('throws with harness name and selector when root is null', () => {
+    expect(() => new WidgetHarness(null)).toThrow(
+      'No root for component "WidgetHarness", selector "[data-testid="widget"]"'
+    );
   });
 
   it('throws when root is undefined', () => {
-    expect(() => new WidgetHarness(undefined)).toThrow();
+    expect(() => new WidgetHarness(undefined)).toThrow(
+      'No root for component "WidgetHarness"'
+    );
+  });
+
+  it('throws a readable error for a harness without testid or selector', () => {
+    expect(() => new EmptyHarness(null)).toThrow(
+      'No root for component "EmptyHarness", selector "(none)"'
+    );
   });
 });
 
@@ -102,6 +122,43 @@ describe('user property', () => {
     const a = new WidgetHarness(el);
     const b = new WidgetHarness(el);
     expect(a.user).not.toBe(b.user);
+  });
+
+  it('returns the same user on repeated access', () => {
+    const harness = new WidgetHarness(document.createElement('div'));
+    expect(harness.user).toBe(harness.user);
+  });
+
+  it('can be replaced with a shared instance', () => {
+    const shared = userEvent.setup();
+    const a = new WidgetHarness(document.createElement('div'));
+    const b = new WidgetHarness(document.createElement('div'));
+    a.user = shared;
+    b.user = shared;
+    expect(a.user).toBe(shared);
+    expect(b.user).toBe(shared);
+  });
+});
+
+describe('container', () => {
+  it('accepts a DocumentFragment', () => {
+    const fragment = document.createDocumentFragment();
+    const el = document.createElement('div');
+    el.dataset.testid = 'widget';
+    el.textContent = 'in fragment';
+    fragment.appendChild(el);
+
+    expect(WidgetHarness.first(fragment).root.textContent).toBe('in fragment');
+    expect(WidgetHarness.all(fragment)).toHaveLength(1);
+  });
+
+  it('accepts a ShadowRoot', () => {
+    setBody('<div id="host"></div>');
+    const shadow = document.getElementById('host')!.attachShadow({ mode: 'open' });
+    shadow.innerHTML = '<div data-testid="widget">in shadow</div>';
+
+    expect(WidgetHarness.first(shadow).root.textContent).toBe('in shadow');
+    expect(WidgetHarness.all()).toHaveLength(0);
   });
 });
 
@@ -129,9 +186,11 @@ describe('first', () => {
     expect(h.root.textContent).toBe('inner');
   });
 
-  it('throws when no match found', () => {
+  it('throws with harness name and selector when no match found', () => {
     setBody('');
-    expect(() => WidgetHarness.first()).toThrow();
+    expect(() => WidgetHarness.first()).toThrow(
+      'No root for component "WidgetHarness", selector "[data-testid="widget"]"'
+    );
   });
 
   it('works with raw selector (not just testid)', () => {
@@ -186,10 +245,17 @@ describe('find', () => {
     expect(h.root.textContent).toBe('beta');
   });
 
-  it('throws when predicate matches nothing', () => {
+  it('throws with name and selector when predicate matches nothing', () => {
     expect(() =>
       WidgetHarness.find((w) => w.root.textContent === 'nope')
-    ).toThrow('Cannot find instance of "WidgetHarness"');
+    ).toThrow('Cannot find instance of "WidgetHarness" (selector "[data-testid="widget"]")');
+  });
+
+  it('mentions the container in the error when scoped', () => {
+    const container = document.createElement('div');
+    expect(() => WidgetHarness.find(() => true, container)).toThrow(
+      'within container'
+    );
   });
 
   it('throws when DOM has no elements at all', () => {
@@ -272,6 +338,13 @@ describe('queryElement', () => {
   it('returns descendant (optional mode, element exists)', () => {
     const el = harness.queryElement('.label', true);
     expect(el!.textContent).toBe('Hello');
+  });
+
+  it('accepts an element type parameter', () => {
+    const el = harness.queryElement<HTMLSpanElement>('.label');
+    expect(el.hidden).toBe(false); // HTMLElement-only property, no cast needed
+    const missing = harness.queryElement<HTMLSpanElement>('.missing', true);
+    expect(missing).toBeNull();
   });
 });
 

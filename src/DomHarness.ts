@@ -1,4 +1,13 @@
-import { userEvent } from '@testing-library/user-event';
+import { userEvent, type UserEvent } from '@testing-library/user-event';
+
+/**
+ * Constructor type of a `DomHarness` subclass. Used as the `this` type of the
+ * static finder methods so they return the correct subclass type.
+ */
+export type HarnessConstructor<T extends DomHarness> = (new (
+  root?: Element | null
+) => T) &
+  typeof DomHarness;
 
 /**
  * Base class for building DOM component test harnesses.
@@ -36,43 +45,34 @@ export class DomHarness {
   /** The underlying DOM element wrapped by this harness. */
   root: Element;
 
+  #user?: UserEvent;
+
   /**
    * Returns a harness instance for the first matching element in the DOM (or within `container`).
    * Throws if no element is found.
    *
-   * @param container - Optional parent element to scope the query.
+   * @param container - Optional parent node (element, document, fragment or shadow root) to scope the query. Defaults to `document`.
    * @returns A harness instance of the calling subclass type.
    */
   static first<T extends DomHarness>(
-    this: { new (root?: Element | null): T; [method: string]: any },
-    container?: Element
+    this: HarnessConstructor<T>,
+    container: ParentNode = document
   ): T {
-    const selector = this._getSelector();
-
-    const rootElement = container
-      ? container.querySelector(selector)
-      : document.querySelector(selector);
-
-    return new this(rootElement);
+    return new this(container.querySelector(this._getSelector()));
   }
 
   /**
    * Returns harness instances for all matching elements in the DOM (or within `container`).
    *
-   * @param container - Optional parent element to scope the query.
+   * @param container - Optional parent node to scope the query. Defaults to `document`.
    * @returns An array of harness instances.
    */
   static all<T extends DomHarness>(
-    this: { new (root?: Element | null): T; [method: string]: any },
-    container?: Element
+    this: HarnessConstructor<T>,
+    container: ParentNode = document
   ): T[] {
-    const selector = this._getSelector();
-
-    const elements = container
-      ? container.querySelectorAll(selector)
-      : document.querySelectorAll(selector);
-
-    return Array.from(elements).map((el) => new this(el));
+    const elements = container.querySelectorAll(this._getSelector());
+    return Array.from(elements, (el) => new this(el));
   }
 
   /**
@@ -80,18 +80,21 @@ export class DomHarness {
    * Throws if no match is found.
    *
    * @param matcher - Predicate function to test each harness instance.
-   * @param container - Optional parent element to scope the query.
+   * @param container - Optional parent node to scope the query. Defaults to `document`.
    * @returns The first matching harness instance.
    */
   static find<T extends DomHarness>(
-    this: { new (root?: Element | null): T; [method: string]: any },
+    this: HarnessConstructor<T>,
     matcher: (el: T) => boolean,
-    container?: Element
+    container: ParentNode = document
   ): T {
     const foundItem = this.all(container).find(matcher);
 
     if (!foundItem) {
-      throw new Error(`Cannot find instance of "${this.name}"`);
+      const scope = container === document ? '' : ' within container';
+      throw new Error(
+        `Cannot find instance of "${this.name}" (selector "${this._getSelector()}"${scope})`
+      );
     }
 
     return foundItem;
@@ -102,14 +105,14 @@ export class DomHarness {
    *
    * @param textOrRegexp - Exact string or regex to match against.
    * @param getText - Function that extracts text from a harness instance.
-   * @param container - Optional parent element to scope the query.
+   * @param container - Optional parent node to scope the query. Defaults to `document`.
    * @returns The first matching harness instance.
    */
   static match<T extends DomHarness>(
-    this: { new (root?: Element | null): T; [method: string]: any },
+    this: HarnessConstructor<T>,
     textOrRegexp: string | RegExp,
     getText: (h: T) => string,
-    container?: Element
+    container: ParentNode = document
   ): T {
     return this.find((h: T) => {
       const text = getText(h);
@@ -126,16 +129,16 @@ export class DomHarness {
    * @returns A harness instance wrapping the given element.
    */
   static fromDomElement<T extends DomHarness>(
-    this: { new (root?: Element | null): T; [method: string]: any },
-    root?: Element
+    this: HarnessConstructor<T>,
+    root?: Element | null
   ): T {
     return new this(root);
   }
 
   /** @internal */
-  static _getSelector() {
+  static _getSelector(): string {
     const selector = this.testid
-      ? `[data-testid='${this.testid}']`
+      ? `[data-testid="${this.testid.replace(/["\\]/g, '\\$&')}"]`
       : this.selector;
 
     if (!selector) {
@@ -149,9 +152,16 @@ export class DomHarness {
 
   /**
    * A `@testing-library/user-event` instance for simulating user interactions.
-   * Created per harness instance via `userEvent.setup()`.
+   * Created lazily per harness instance via `userEvent.setup()` on first access.
+   * Assign to it to share a pre-configured instance across harnesses.
    */
-  user = userEvent.setup();
+  get user(): UserEvent {
+    return (this.#user ??= userEvent.setup());
+  }
+
+  set user(value: UserEvent) {
+    this.#user = value;
+  }
 
   /**
    * Creates a new harness instance wrapping the given DOM element.
@@ -160,10 +170,11 @@ export class DomHarness {
    */
   constructor(root?: Element | null) {
     if (!root) {
+      const ctor = this.constructor as typeof DomHarness;
+      const selector =
+        ctor.testid || ctor.selector ? ctor._getSelector() : '(none)';
       throw new Error(
-        `No root for component "${
-          this.constructor.name
-        }", selector "${DomHarness._getSelector()}"`
+        `No root for component "${ctor.name}", selector "${selector}"`
       );
     }
 
@@ -174,20 +185,25 @@ export class DomHarness {
    * Queries a descendant of `root` by CSS selector.
    * Throws if no element is found.
    *
+   * @typeParam E - Expected element type, e.g. `HTMLInputElement`.
    * @param selector - CSS selector string.
    * @returns The matching element.
    */
-  queryElement(selector: string): Element;
+  queryElement<E extends Element = Element>(selector: string): E;
   /**
    * Queries a descendant of `root` by CSS selector.
    * Returns `null` if no element is found.
    *
+   * @typeParam E - Expected element type, e.g. `HTMLInputElement`.
    * @param selector - CSS selector string.
    * @param optional - Pass `true` to allow null results.
    * @returns The matching element, or `null` if not found.
    */
-  queryElement(selector: string, optional: true): Element | null;
-  queryElement(selector: string, optional?: boolean) {
+  queryElement<E extends Element = Element>(
+    selector: string,
+    optional: true
+  ): E | null;
+  queryElement(selector: string, optional?: boolean): Element | null {
     const element = this.root.querySelector(selector);
     if (!element && !optional)
       throw new Error(
