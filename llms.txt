@@ -6,7 +6,7 @@
 
 - [README](https://github.com/koorchik/dom-harness/blob/master/README.md): Full documentation with API reference, patterns, and usage examples
 - [Full LLM documentation](https://github.com/koorchik/dom-harness/blob/master/llms-full.txt): Complete API reference and examples optimized for LLM consumption
-- [Source](https://github.com/koorchik/dom-harness/blob/master/src/DomHarness.ts): Single-file implementation (~110 lines)
+- [Source](https://github.com/koorchik/dom-harness/blob/master/src/DomHarness.ts): Single-file implementation
 
 ## Examples
 

@@ -136,7 +136,7 @@ examples/
   angular/   — Angular 19
 ```
 
-Each example runs tests with `npm test` (vitest).
+Each example runs tests with `npm test` (vitest). The examples depend on the root package via `file:../..`, so run `npm install` in the repository root first (it builds `dist/`), then `npm install && npm test` inside an example.
 
 ## API reference
 
@@ -151,15 +151,18 @@ At least one of `testid` or `selector` must be defined on a harness subclass.
 
 ### Static methods
 
-#### `first(container?: Element): T`
+All static methods return the calling subclass type. The optional `container` scopes the query and accepts any `ParentNode` (an `Element`, `Document`, `DocumentFragment` or `ShadowRoot`); it defaults to `document`.
 
-Returns a harness instance for the **first** matching element in the DOM (or within `container`).
+#### `first(container?: ParentNode): T`
+
+Returns a harness instance for the **first** matching element in the DOM (or within `container`). Throws if no element is found; the error names the harness class and its selector.
 
 ```ts
 const btn = ButtonHarness.first();
+const scoped = ButtonHarness.first(formElement);
 ```
 
-#### `all(container?: Element): T[]`
+#### `all(container?: ParentNode): T[]`
 
 Returns harness instances for **all** matching elements.
 
@@ -168,7 +171,7 @@ const buttons = ButtonHarness.all();
 expect(buttons).toHaveLength(3);
 ```
 
-#### `find(matcher: (el: T) => boolean, container?: Element): T`
+#### `find(matcher: (el: T) => boolean, container?: ParentNode): T`
 
 Returns the first harness whose instance satisfies `matcher`. Throws if no match is found.
 
@@ -176,7 +179,7 @@ Returns the first harness whose instance satisfies `matcher`. Throws if no match
 const submit = ButtonHarness.find(b => b.text() === 'Submit');
 ```
 
-#### `match(textOrRegexp: string | RegExp, getText: (h: T) => string, container?: Element): T`
+#### `match(textOrRegexp: string | RegExp, getText: (h: T) => string, container?: ParentNode): T`
 
 Convenience wrapper around `find` that matches by text content or regex.
 
@@ -185,9 +188,9 @@ const cancel = ButtonHarness.match('Cancel', b => b.text());
 const save = ButtonHarness.match(/save/i, b => b.text());
 ```
 
-#### `fromDomElement(root?: Element): T`
+#### `fromDomElement(root?: Element | null): T`
 
-Wraps an existing DOM element in a harness, bypassing selector lookup.
+Wraps an existing DOM element in a harness, bypassing selector lookup. Throws if `root` is null or undefined.
 
 ```ts
 const el = document.querySelector('.my-button')!;
@@ -202,18 +205,42 @@ The underlying DOM element for this harness.
 
 #### `user: UserEvent`
 
-A `@testing-library/user-event` instance for simulating user interactions.
+A `@testing-library/user-event` instance for simulating user interactions. It is created lazily per harness instance via `userEvent.setup()` on first access. Assign to it to share one pre-configured instance across harnesses.
 
 ```ts
 await harness.user.click(harness.root);
+
+// Share a single instance (e.g. with a custom delay) across harnesses
+const user = userEvent.setup({ delay: null });
+form.user = user;
 ```
 
-#### `queryElement(selector: string): Element`
+#### `queryElement<E extends Element = Element>(selector: string): E`
 
-Queries a descendant of `root` by CSS selector. Throws if no element is found. In practice, most harnesses use `this.root.querySelector(...)` directly for more control over null handling.
+Queries a descendant of `root` by CSS selector. Throws if no element is found.
+
+#### `queryElement<E extends Element = Element>(selector: string, optional: true): E | null`
+
+Same query, but returns `null` instead of throwing when nothing matches. Useful for elements that appear conditionally. The optional type parameter sets the return type so no cast is needed at the call site.
 
 ```ts
-const icon = this.root.querySelector('.icon');
+const icon = this.queryElement('.icon');
+const badge = this.queryElement('.badge', true); // may be null
+const input = this.queryElement<HTMLInputElement>('input'); // typed, no cast
+```
+
+### Types
+
+#### `HarnessConstructor<T extends DomHarness>`
+
+The constructor type of a harness subclass. Exported for helpers that accept harness classes as arguments:
+
+```ts
+import { DomHarness, type HarnessConstructor } from 'dom-harness';
+
+function within<T extends DomHarness>(Harness: HarnessConstructor<T>, root: Element) {
+  return Harness.first(root);
+}
 ```
 
 ## Patterns

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-`dom-harness` is a lightweight TypeScript library (~110 lines) that provides a base `DomHarness` class for building DOM component test harnesses, inspired by Angular CDK's `ComponentHarness`. Consumers extend `DomHarness` to create component-specific harness classes that encapsulate selectors and interactions behind a clean API. Works with any UI framework.
+`dom-harness` is a lightweight TypeScript library that provides a base `DomHarness` class for building DOM component test harnesses, inspired by Angular CDK's `ComponentHarness`. Consumers extend `DomHarness` to create component-specific harness classes that encapsulate selectors and interactions behind a clean API. Works with any UI framework.
 
 ## Usage Guide
 
@@ -70,20 +70,22 @@ expect(form.welcomeText()).toBe('Welcome, testuser!');
 
 **Static properties:** `testid?: string`, `selector?: string` — at least one required on subclasses.
 
-**Static methods** (all return correct subclass type via `this` typing):
-- `first(container?: Element): T` — first matching element, throws if none
-- `all(container?: Element): T[]` — all matching elements
-- `find(matcher: (el: T) => boolean, container?: Element): T` — first match by predicate, throws if none
-- `match(textOrRegexp: string | RegExp, getText: (h: T) => string, container?: Element): T` — match by text/regex
-- `fromDomElement(root?: Element): T` — wrap existing DOM element
+**Static methods** (all return correct subclass type via `this: HarnessConstructor<T>` typing; `container` accepts any `ParentNode` — Element, Document, DocumentFragment, ShadowRoot — and defaults to `document`):
+- `first(container?: ParentNode): T` — first matching element, throws if none (error names the class and selector)
+- `all(container?: ParentNode): T[]` — all matching elements
+- `find(matcher: (el: T) => boolean, container?: ParentNode): T` — first match by predicate, throws if none
+- `match(textOrRegexp: string | RegExp, getText: (h: T) => string, container?: ParentNode): T` — match by text/regex
+- `fromDomElement(root?: Element | null): T` — wrap existing DOM element, throws if null
 
 **Instance properties:**
 - `root: Element` — the wrapped DOM element
-- `user: UserEvent` — `@testing-library/user-event` instance (created per harness via `userEvent.setup()`)
+- `user: UserEvent` — `@testing-library/user-event` instance, created lazily per harness via `userEvent.setup()` on first access; assignable to share one instance
 
 **Instance methods:**
-- `queryElement(selector): Element` — descendant query, throws if not found
-- `queryElement(selector, true): Element | null` — descendant query, returns null if not found
+- `queryElement<E = Element>(selector): E` — descendant query, throws if not found
+- `queryElement<E = Element>(selector, true): E | null` — descendant query, returns null if not found
+
+**Types:** `HarnessConstructor<T>` — constructor type of a harness subclass, for helpers that take harness classes.
 
 ## Examples
 
@@ -97,8 +99,9 @@ This section is for contributors to the dom-harness library itself.
 
 ### Commands
 
-- **Build:** `npm run build` (runs `tsc`)
+- **Build:** `npm run build` (runs `tsc`; also runs automatically on `npm install` via `prepare`)
 - **Test:** `npm test` (runs `vitest run`)
+- **Type check:** `npm run typecheck` (runs `tsc --noEmit`, includes tests)
 - **Clean:** `npm run clean` (removes `dist/`)
 - **Prepare for publish:** `npm run prepublishOnly` (clean + build)
 
@@ -115,6 +118,8 @@ Single export: `DomHarness` class from `src/DomHarness.ts` → re-exported via `
 
 **Structure:** Each example component has its own folder (`text-input/`, `button/`, `login-form/`) containing component, harness, and test files. Vue/Svelte folders include `index.ts` barrel files for named re-exports of SFC default exports.
 
+**Prerequisite:** examples depend on the root package via `"dom-harness": "file:../.."`, which resolves to the root `dist/`. Run `npm install` (or `npm run build`) in the repo root before installing or testing an example, otherwise `dom-harness` fails to resolve.
+
 **Commands per example:**
 - `npm test` — runs `vitest run`
 - Type check: `npx tsc --noEmit` (react, preact, solid, angular), `npx vue-tsc --noEmit` (vue), `npx svelte-check` (svelte)
@@ -127,5 +132,6 @@ Single export: `DomHarness` class from `src/DomHarness.ts` → re-exported via `
 
 ### Gotchas
 
-- Constructor error message (line 91) calls `DomHarness._getSelector()` which binds to the base class — if a subclass constructor fails, the error message itself may throw because `DomHarness` has no `testid`/`selector`
-- `userEvent.setup()` runs per harness instance, not shared — intentional for test isolation but worth knowing if performance matters
+- `userEvent.setup()` runs lazily per harness instance, not shared — intentional for test isolation. Composed getters (e.g. `form.usernameInput`) create a fresh harness on each access, so keyboard/pointer state does not carry across them; assign a shared `user` if a test needs that
+- `testid` values are escaped for `"` and `\` when building the selector; raw `selector` strings are used verbatim
+- CI (`.github/workflows/ci.yml`) runs root typecheck + tests on Node 20/22, then installs, type-checks and tests each example
