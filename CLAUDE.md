@@ -105,6 +105,10 @@ This section is for contributors to the dom-harness library itself.
 - **Clean:** `npm run clean` (removes `dist/`)
 - **Prepare for publish:** `npm run prepublishOnly` (clean + build)
 
+### Git conventions
+
+- Do not add `Co-Authored-By` or `Claude-Session` trailers (or any other AI attribution) to commit messages or PR descriptions. Plain commit messages only.
+
 ### Architecture
 
 Single export: `DomHarness` class from `src/DomHarness.ts` → re-exported via `src/index.ts`.
