@@ -138,4 +138,4 @@ Single export: `DomHarness` class from `src/DomHarness.ts` → re-exported via `
 
 - `userEvent.setup()` runs lazily per harness instance, not shared — intentional for test isolation. Composed getters (e.g. `form.usernameInput`) create a fresh harness on each access, so keyboard/pointer state does not carry across them; assign a shared `user` if a test needs that
 - `testid` values are escaped for `"` and `\` when building the selector; raw `selector` strings are used verbatim
-- CI (`.github/workflows/ci.yml`) runs root typecheck + tests on Node 20/22, then installs, type-checks and tests each example
+- CI (`.github/workflows/ci.yml`) runs root typecheck + tests on Node 22/24/26, then installs, type-checks and tests each example
